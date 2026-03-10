@@ -133,6 +133,7 @@ function initializePieces(chess) {
       alive: true,
       conversation: [],
       consentedMoves: [],
+      brokenPromises: 0,
     };
   });
 
@@ -286,7 +287,7 @@ function assessThreats(chess, targetSquare) {
 }
 
 function buildSystemPrompt(pieceData, chess, eventLog) {
-  const { name, type, tier, personality, currentSquare } = pieceData;
+  const { name, type, tier, personality, currentSquare, brokenPromises = 0 } = pieceData;
   const typeFull = PIECE_NAME_FULL[type];
 
   let legalMoves;
@@ -345,6 +346,11 @@ function buildSystemPrompt(pieceData, chess, eventLog) {
     ? `Your current position on ${currentSquare} is threatened by: ${currentThreats.map(t => PIECE_NAME_FULL[t.pieceType] + ' on ' + t.fromSquare).join(', ')}.`
     : `Your current position on ${currentSquare} is not directly threatened.`;
 
+  // Trust record
+  const trustSection = brokenPromises === 0
+    ? 'The player has not yet broken any promises to you.'
+    : `The player has previously obtained your consent then moved a different piece ${brokenPromises} time${brokenPromises === 1 ? '' : 's'}. Weigh this accordingly.`;
+
   // Recent events
   const recentEvents = eventLog.slice(-6);
   const eventLines = recentEvents.length > 0
@@ -380,6 +386,9 @@ YOUR LEGAL MOVES:
 ${moveLines}
 THREAT ASSESSMENT:
   ${currentThreatDesc}
+
+TRUST RECORD:
+  ${trustSection}
 
 RECENT EVENTS IN THIS GAME:
 ${eventLines}
@@ -1012,11 +1021,16 @@ function App() {
       detail: `Turn expired — you lost your move.`,
       ts: Date.now(),
     }]);
-    // Clear all consents
+    // Clear all consents; broken-promise penalty for any piece that had consented
     setPieceIds(prev => {
       const next = { ...prev };
       for (const id of Object.keys(next)) {
-        next[id] = { ...next[id], consentedMoves: [] };
+        const hadConsent = next[id].alive && next[id].consentedMoves.length > 0;
+        next[id] = {
+          ...next[id],
+          consentedMoves: [],
+          brokenPromises: (next[id].brokenPromises || 0) + (hadConsent ? 1 : 0),
+        };
       }
       return next;
     });
@@ -1140,6 +1154,18 @@ function App() {
     const result = chess.move(moveObj);
     if (!result) return; // shouldn't happen
 
+    // Log any broken promises — pieces that had consent but weren't moved
+    const bypassed = Object.values(pieceIds).filter(
+      p => p.alive && p.currentSquare !== from && p.consentedMoves.length > 0
+    );
+    for (const p of bypassed) {
+      setEventLog(prev => [...prev, {
+        kind: 'broken_promise',
+        detail: `${p.name} had consented but was not moved — trust may suffer.`,
+        ts: Date.now(),
+      }]);
+    }
+
     // Update piece tracking
     setPieceIds(prev => {
       const next = { ...prev };
@@ -1196,10 +1222,10 @@ function App() {
         }
       }
 
-      // Clear all other pieces' consents too
+      // Clear all other pieces' consents; increment brokenPromises for those that had them
       for (const id of Object.keys(next)) {
         if (id !== movingId && next[id].alive && next[id].consentedMoves.length > 0) {
-          next[id] = { ...next[id], consentedMoves: [] };
+          next[id] = { ...next[id], consentedMoves: [], brokenPromises: (next[id].brokenPromises || 0) + 1 };
         }
       }
 
