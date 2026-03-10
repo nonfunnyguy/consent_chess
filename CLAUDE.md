@@ -34,7 +34,7 @@ npm run preview  # serve the dist/ build locally
 ## Architecture notes
 
 ### Piece data structure
-Each piece is an entry in the `pieceIds` state map, keyed by starting square (e.g. `"e2"`). Fields include: `name`, `type`, `color`, `personality`, `conversation` (full message history), `consents` (current legal moves consented to), `currentSquare`, `alive`, `model`.
+Each piece is an entry in the `pieceIds` state map, keyed by starting square (e.g. `"e2"`). Fields include: `name`, `type`, `color`, `personality`, `conversation` (full message history), `consentedMoves` (current legal moves consented to), `currentSquare`, `alive`, `model`, `brokenPromises` (count of times consent was ignored).
 
 ### API calls
 - Direct browser→Anthropic fetch using `anthropic-dangerous-direct-browser-access` header
@@ -57,13 +57,13 @@ Piece responses include a JSON block at the end that the frontend parses to extr
 
 - [x] Migrate to Vite — drop Babel Standalone for a real build step
 - [x] Streaming responses — stream LLM reply token by token (reduces perceived latency)
-- [ ] Local storage persistence — survive a page refresh mid-game
-- [ ] Conversation summary pruning — trim old history for long games to stay within context limits
-- [ ] Piece status panel — sidebar listing all living pieces and their consent state
-- [ ] Timer warning — visual/audio pulse when under 20 seconds
-- [ ] Expand personality trait pool — make temperament affect tone more distinctly
-- [ ] Trust mechanics — pieces track broken promises explicitly
-- [ ] Check pressure — king becomes increasingly panicked approaching checkmate
-- [ ] Morale events — major captures trigger a morale note before the next turn
+- [x] Local storage persistence — survive a page refresh mid-game
+- [x] Conversation summary pruning — trim old history for long games to stay within context limits
+- [x] Piece status panel — sidebar listing all living pieces and their consent state
+- [x] Timer warning — visual/audio pulse when under 20 seconds
+- [x] Expand personality trait pool — make temperament affect tone more distinctly
+- [x] Trust mechanics — pieces track broken promises explicitly
+- [x] Check pressure — king becomes increasingly panicked approaching checkmate
+- [x] Morale events — major captures trigger a morale note before the next turn
 - [ ] Two-player mode — both sides negotiate with their own pieces
 - [ ] Mobile layout — current layout assumes wide screen
