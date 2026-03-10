@@ -571,8 +571,36 @@ function ApiKeySetup({ onStart, savedState, onContinue }) {
   );
 }
 
+// ── Audio warning beep ──
+function playWarningBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 520;
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch(e) {}
+}
+
 // ── TurnTimer ──
 function TurnTimer({ timeLeft, turnPhase, isThinking }) {
+  const prevTimeLeft = useRef(timeLeft);
+
+  useEffect(() => {
+    if (turnPhase === 'white' && !isThinking) {
+      if (prevTimeLeft.current > 20 && timeLeft <= 20) {
+        playWarningBeep();
+      }
+    }
+    prevTimeLeft.current = timeLeft;
+  }, [timeLeft, turnPhase, isThinking]);
+
   if (turnPhase === 'gameover') {
     return <div className="turn-timer other">Game Over</div>;
   }
@@ -587,7 +615,7 @@ function TurnTimer({ timeLeft, turnPhase, isThinking }) {
       </div>
     );
   }
-  const cls = timeLeft > 30 ? 'normal' : timeLeft > 15 ? 'warning' : 'urgent';
+  const cls = timeLeft > 30 ? 'normal' : timeLeft > 20 ? 'warning' : 'urgent';
   return (
     <div className={`turn-timer ${cls}`}>
       {String(Math.floor(timeLeft / 60)).padStart(2,'0')}:{String(timeLeft % 60).padStart(2,'0')}
