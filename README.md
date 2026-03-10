@@ -16,7 +16,7 @@ You play white. Black makes random legal moves automatically. The clock is ticki
 4. The piece will respond in character and may consent to specific legal moves.
 5. Consented moves are highlighted on the board in green. Click one to execute it.
 6. If the timer runs out before you move, you lose your turn.
-7. Black moves instantly and randomly. Then it's your turn again.
+7. Black plays automatically using a depth-2 minimax engine. Then it's your turn again.
 
 ## Mechanics
 

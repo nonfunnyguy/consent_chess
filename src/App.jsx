@@ -71,6 +71,149 @@ const RANK_LABELS = ['8','7','6','5','4','3','2','1'];
 const FILE_LABELS = ['a','b','c','d','e','f','g','h'];
 
 // ─────────────────────────────────────────────
+// CHESS ENGINE  (minimax + alpha-beta, depth 2)
+// ─────────────────────────────────────────────
+
+const ENGINE_DEPTH = 2; // raise to 3 for harder play (still < 200 ms; 4+ needs a Worker)
+
+const ENGINE_PIECE_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+// Piece-square tables — each flat array has 64 entries.
+// Indexing convention (same for all PSTs):
+//   white piece at board[row][col]  →  pst[(7 - row) * 8 + col]
+//   black piece at board[row][col]  →  pst[row * 8 + col]
+// This gives every piece the same "home rank = low bonus, advanced = high bonus" semantics.
+const ENGINE_PST = {
+  p: [
+     0,  0,  0,  0,  0,  0,  0,  0,
+     5, 10, 10,-20,-20, 10, 10,  5,
+     5, -5,-10,  0,  0,-10, -5,  5,
+     0,  0,  0, 20, 20,  0,  0,  0,
+     5,  5, 10, 25, 25, 10,  5,  5,
+    10, 10, 20, 30, 30, 20, 10, 10,
+    50, 50, 50, 50, 50, 50, 50, 50,
+     0,  0,  0,  0,  0,  0,  0,  0,
+  ],
+  n: [
+    -50,-40,-30,-30,-30,-30,-40,-50,
+    -40,-20,  0,  5,  5,  0,-20,-40,
+    -30,  5, 10, 15, 15, 10,  5,-30,
+    -30,  0, 15, 20, 20, 15,  0,-30,
+    -30,  5, 15, 20, 20, 15,  5,-30,
+    -30,  0, 10, 15, 15, 10,  0,-30,
+    -40,-20,  0,  0,  0,  0,-20,-40,
+    -50,-40,-30,-30,-30,-30,-40,-50,
+  ],
+  b: [
+    -20,-10,-10,-10,-10,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5, 10, 10,  5,  0,-10,
+    -10,  5,  5, 10, 10,  5,  5,-10,
+    -10,  0, 10, 10, 10, 10,  0,-10,
+    -10, 10, 10, 10, 10, 10, 10,-10,
+    -10,  5,  0,  0,  0,  0,  5,-10,
+    -20,-10,-10,-10,-10,-10,-10,-20,
+  ],
+  r: [
+     0,  0,  0,  5,  5,  0,  0,  0,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+    -5,  0,  0,  0,  0,  0,  0, -5,
+     5, 10, 10, 10, 10, 10, 10,  5,
+     0,  0,  0,  0,  0,  0,  0,  0,
+  ],
+  q: [
+    -20,-10,-10, -5, -5,-10,-10,-20,
+    -10,  0,  0,  0,  0,  0,  0,-10,
+    -10,  0,  5,  5,  5,  5,  0,-10,
+     -5,  0,  5,  5,  5,  5,  0, -5,
+      0,  0,  5,  5,  5,  5,  0, -5,
+    -10,  5,  5,  5,  5,  5,  0,-10,
+    -10,  0,  5,  0,  0,  0,  0,-10,
+    -20,-10,-10, -5, -5,-10,-10,-20,
+  ],
+  k: [
+     20, 30, 10,  0,  0, 10, 30, 20,
+     20, 20,  0,  0,  0,  0, 20, 20,
+    -10,-20,-20,-20,-20,-20,-20,-10,
+    -20,-30,-30,-40,-40,-30,-30,-20,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+    -30,-40,-40,-50,-50,-40,-40,-30,
+  ],
+};
+
+// Returns positive score = good for black, negative = good for white.
+function engineEval(chess) {
+  const board = chess.board();
+  let score = 0;
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const cell = board[row][col];
+      if (!cell) continue;
+      const base = ENGINE_PIECE_VALUES[cell.type] || 0;
+      const idx  = cell.color === 'b' ? row * 8 + col : (7 - row) * 8 + col;
+      const pst  = ENGINE_PST[cell.type]?.[idx] ?? 0;
+      score += cell.color === 'b' ? (base + pst) : -(base + pst);
+    }
+  }
+  return score;
+}
+
+function engineMinimax(chess, depth, alpha, beta, isMaximizing) {
+  if (chess.game_over()) {
+    if (chess.in_checkmate()) return chess.turn() === 'b' ? -99999 : 99999;
+    return 0; // draw/stalemate
+  }
+  if (depth === 0) return engineEval(chess);
+
+  const moves = chess.moves();
+  // Captures first — improves alpha-beta cut-off rate
+  moves.sort((a, b) => (b.includes('x') ? 1 : 0) - (a.includes('x') ? 1 : 0));
+
+  if (isMaximizing) {
+    let best = -Infinity;
+    for (const m of moves) {
+      chess.move(m);
+      best = Math.max(best, engineMinimax(chess, depth - 1, alpha, beta, false));
+      chess.undo();
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const m of moves) {
+      chess.move(m);
+      best = Math.min(best, engineMinimax(chess, depth - 1, alpha, beta, true));
+      chess.undo();
+      beta = Math.min(beta, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+// Returns the best move string for the current player (black) or null if none.
+function getBestBlackMove(chess) {
+  // Shuffle first so ties between equal-scored moves are broken randomly
+  const moves = [...chess.moves()].sort(() => Math.random() - 0.5);
+  if (!moves.length) return null;
+  let bestMove = moves[0];
+  let bestScore = -Infinity;
+  for (const m of moves) {
+    chess.move(m);
+    const score = engineMinimax(chess, ENGINE_DEPTH - 1, -Infinity, Infinity, false);
+    chess.undo();
+    if (score > bestScore) { bestScore = score; bestMove = m; }
+  }
+  return bestMove;
+}
+
+// ─────────────────────────────────────────────
 // PURE HELPERS
 // ─────────────────────────────────────────────
 
@@ -1103,9 +1246,8 @@ function App() {
       }
     }
 
-    const moves = chess.moves();
-    if (moves.length === 0) { checkGameOver(chess); return; }
-    const chosen = moves[rand(moves.length)];
+    const chosen = getBestBlackMove(chess);
+    if (!chosen) { checkGameOver(chess); return; }
     const result = chess.move(chosen);
     setFen(chess.fen());
 
