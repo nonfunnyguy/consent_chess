@@ -596,6 +596,40 @@ function TurnTimer({ timeLeft, turnPhase, isThinking }) {
   );
 }
 
+// ── PieceStatusPanel ──
+const PIECE_TYPE_ORDER = { k:0, q:1, r:2, b:3, n:4, p:5 };
+
+function PieceStatusPanel({ pieceIds, selectedSquare, onSelectPiece }) {
+  const pieces = Object.values(pieceIds).sort((a, b) =>
+    (PIECE_TYPE_ORDER[a.type] ?? 9) - (PIECE_TYPE_ORDER[b.type] ?? 9)
+  );
+
+  return (
+    <div className="piece-status-panel">
+      <div className="piece-status-header">Your Pieces</div>
+      <div className="piece-status-list">
+        {pieces.map(p => {
+          const isSelected = p.alive && p.currentSquare === selectedSquare;
+          const hasConsent = p.alive && p.consentedMoves.length > 0;
+          return (
+            <div
+              key={p.id}
+              className={`piece-status-item${!p.alive ? ' dead' : ''}${isSelected ? ' selected' : ''}`}
+              onClick={() => p.alive && onSelectPiece(p.currentSquare)}
+              title={p.alive ? `${p.name} on ${p.currentSquare}` : `${p.name} — captured`}
+            >
+              <span className="ps-glyph">{UNICODE.w[p.type]}</span>
+              <span className="ps-name">{p.name}</span>
+              {p.alive && <span className="ps-square">{p.currentSquare}</span>}
+              {hasConsent && <span className="ps-dot" title={`Consents: ${p.consentedMoves.join(', ')}`} />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── ChatPanel ──
 function ChatPanel({ selectedPiece, isThinking, turnPhase, onSendMessage }) {
   const [input, setInput] = useState('');
@@ -1285,6 +1319,11 @@ function App() {
 
       <div className="side-panel">
         <TurnTimer timeLeft={timeLeft} turnPhase={turnPhase} isThinking={isThinking} />
+        <PieceStatusPanel
+          pieceIds={pieceIds}
+          selectedSquare={selectedSquare}
+          onSelectPiece={sq => { if (turnPhase === 'white') setSelectedSquare(sq); }}
+        />
         <ChatPanel
           selectedPiece={selectedPiece}
           isThinking={isThinking}
