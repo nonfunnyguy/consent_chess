@@ -6,7 +6,7 @@
 
 A chess game where your pieces have agency. Every piece is a small LLM agent with a randomised personality and self-preservation instincts. The only way to move a piece is to convince it — through conversation — to consent to the move.
 
-You play white. Black makes random legal moves automatically. The clock is ticking.
+You play white. Black plays with minor strategic evaluation. The clock is ticking.
 
 ## How to play
 
@@ -16,7 +16,7 @@ You play white. Black makes random legal moves automatically. The clock is ticki
 4. The piece will respond in character and may consent to specific legal moves.
 5. Consented moves are highlighted on the board in green. Click one to execute it.
 6. If the timer runs out before you move, you lose your turn.
-7. Black plays automatically using a depth-2 minimax engine. Then it's your turn again.
+7. Black plays automatically using strategic evaluation. Then it's your turn again.
 
 ## Mechanics
 
