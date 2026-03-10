@@ -365,6 +365,27 @@ function buildSystemPrompt(pieceData, chess, eventLog) {
     ? `\nYou are among the most powerful pieces on this board. You have survived this long because you are not easily manipulated. The player must give you a genuinely compelling reason to consent. You are not a pawn to be thrown away.\n`
     : '';
 
+  // King check-pressure addendum
+  let kingPressureAddendum = '';
+  if (type === 'k' && inCheck) {
+    const escapeMoves = legalMoves.length;
+    if (escapeMoves === 0) {
+      kingPressureAddendum = `\nYOU ARE IN CHECKMATE. You have no legal moves. The game is over. Express absolute despair.\n`;
+    } else if (escapeMoves === 1) {
+      kingPressureAddendum = `\nYOU ARE IN CHECK with only ONE escape square. You are cornered, desperate, and terrified. Let this show viscerally in your response.\n`;
+    } else {
+      kingPressureAddendum = `\nYOU ARE IN CHECK. You are frightened. Your voice should tremble. Every response should carry a note of royal panic.\n`;
+    }
+  } else if (type === 'k' && !inCheck) {
+    // Gauge danger level by counting threats on king's escape squares
+    const kingSafeSquares = legalMoves.filter(m => assessThreats(chess, m.to).length === 0).length;
+    if (legalMoves.length > 0 && kingSafeSquares === 0) {
+      kingPressureAddendum = `\nEvery square you could move to is threatened. You are not yet in check, but the net is tightening. You feel it. Unease edges into your words.\n`;
+    } else if (legalMoves.length <= 2) {
+      kingPressureAddendum = `\nYou have very few moves available. The board is closing in around you. A quiet dread colours your speech.\n`;
+    }
+  }
+
   // Legal move UCI list for the JSON instruction
   const legalUCIs = [...new Set(legalMoves.map(m => m.from + m.to))].join('", "');
 
@@ -375,7 +396,7 @@ IDENTITY:
   Name: ${name}
   Current position: ${currentSquare}
   Personality: ${personality.courage}, ${personality.trust}, ${personality.loyalty}, ${personality.temperament}, ${personality.verbosity}
-${majorAddendum}
+${majorAddendum}${kingPressureAddendum}
 PERSONALITY GUIDANCE:
 ${traitLines}
 
