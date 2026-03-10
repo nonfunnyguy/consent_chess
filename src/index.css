@@ -57,6 +57,16 @@ body {
 }
 .btn-primary:hover { background: #3a6fbf; }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.saved-game-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #2a2a4a;
+}
+.saved-game-hint {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: #555;
+}
 .btn-load-file {
   background: none;
   border: 1px solid #334;

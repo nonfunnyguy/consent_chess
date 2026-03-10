@@ -54,6 +54,8 @@ const TRAIT_DESC = {
 
 const TIMER_DURATION = 90;
 
+const STORAGE_KEY = 'consent_chess_v1';
+
 const RANK_LABELS = ['8','7','6','5','4','3','2','1'];
 const FILE_LABELS = ['a','b','c','d','e','f','g','h'];
 
@@ -496,7 +498,7 @@ function stripJsonBlock(text) {
 // ─────────────────────────────────────────────
 
 // ── ApiKeySetup ──
-function ApiKeySetup({ onStart }) {
+function ApiKeySetup({ onStart, savedState, onContinue }) {
   const [key, setKey] = useState('');
   const [err, setErr] = useState('');
 
@@ -513,6 +515,12 @@ function ApiKeySetup({ onStart }) {
       <div className="setup-card">
         <h1>♟ Risk-Aware Consensual Chess</h1>
         <p className="subtitle">Your pieces have opinions. Ask nicely.</p>
+        {savedState && (
+          <div className="saved-game-section">
+            <button className="btn-primary" onClick={onContinue}>Continue Saved Game</button>
+            <div className="saved-game-hint">or start a new game below</div>
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <label htmlFor="apikey">Anthropic API Key</label>
           <input
@@ -521,7 +529,7 @@ function ApiKeySetup({ onStart }) {
             placeholder="sk-ant-..."
             value={key}
             onChange={e => { setKey(e.target.value); setErr(''); }}
-            autoFocus
+            autoFocus={!savedState}
           />
           <div className="error">{err}</div>
           <input
@@ -541,7 +549,7 @@ function ApiKeySetup({ onStart }) {
           <button type="button" className="btn-load-file" onClick={() => document.getElementById('key-file-input').click()}>
             Load from file…
           </button>
-          <button type="submit" className="btn-primary">Start Game</button>
+          <button type="submit" className="btn-primary">Start New Game</button>
         </form>
       </div>
     </div>
@@ -837,11 +845,30 @@ function App() {
   const [isThinking, setIsThinking]   = useState(false);
   const [gameResult, setGameResult]   = useState(null);
   const [pendingPromotion, setPendingPromotion] = useState(null);
+  const [savedState, setSavedState]   = useState(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed?.fen && parsed?.apiKey && parsed?.pieceIds) return parsed;
+    } catch(e) {}
+    return null;
+  });
 
   const chessRef = useRef(null);
 
+  // ── Persist state to localStorage ──
+  useEffect(() => {
+    if (!gameStarted || turnPhase === 'gameover' || turnPhase === 'black') return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ fen, pieceIds, eventLog, turnPhase, timeLeft, apiKey }));
+    } catch(e) {}
+  }, [fen, pieceIds, eventLog, turnPhase, timeLeft, gameStarted, apiKey]);
+
   // ── Start / restart game ──
   function startGame(key) {
+    localStorage.removeItem(STORAGE_KEY);
+    setSavedState(null);
     const chess = new Chess();
     chessRef.current = chess;
     const pieces = initializePieces(chess);
@@ -855,6 +882,27 @@ function App() {
     setIsThinking(false);
     setGameResult(null);
     setPendingPromotion(null);
+    setGameStarted(true);
+  }
+
+  // ── Resume saved game ──
+  function loadGame() {
+    const save = savedState;
+    if (!save) return;
+    const chess = new Chess();
+    chess.load(save.fen);
+    chessRef.current = chess;
+    setApiKey(save.apiKey);
+    setPieceIds(save.pieceIds);
+    setFen(save.fen);
+    setEventLog(save.eventLog || []);
+    setSelectedSquare(null);
+    setTurnPhase(save.turnPhase || 'white');
+    setTimeLeft(save.timeLeft ?? TIMER_DURATION);
+    setIsThinking(false);
+    setGameResult(null);
+    setPendingPromotion(null);
+    setSavedState(null);
     setGameStarted(true);
   }
 
@@ -910,6 +958,7 @@ function App() {
     setGameResult({ winner, reason });
     setTurnPhase('gameover');
     setEventLog(prev => [...prev, { kind: 'game_over', detail: `Game over: ${winner} wins (${reason}).`, ts: Date.now() }]);
+    localStorage.removeItem(STORAGE_KEY);
     return true;
   }
 
@@ -1186,6 +1235,7 @@ function App() {
     setGameResult({ winner: 'black', reason: 'resignation' });
     setTurnPhase('gameover');
     setEventLog(prev => [...prev, { kind: 'game_over', detail: 'White resigned.', ts: Date.now() }]);
+    localStorage.removeItem(STORAGE_KEY);
   }
 
   // ── Derive selected piece data ──
@@ -1197,7 +1247,7 @@ function App() {
   }, [selectedSquare, pieceIds]);
 
   if (!gameStarted) {
-    return <ApiKeySetup onStart={startGame} />;
+    return <ApiKeySetup onStart={startGame} savedState={savedState} onContinue={loadGame} />;
   }
 
   const chess = chessRef.current;
