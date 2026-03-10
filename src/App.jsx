@@ -1131,6 +1131,22 @@ function App() {
       }
 
       setEventLog(prev => [...prev, { kind: result.captured ? 'capture' : 'move', detail, ts: Date.now() }]);
+
+      // Morale event when a significant white piece is lost
+      if (result.captured && result.captured !== 'p') {
+        const capturedName = Object.values(pieceIds).find(
+          p => p.alive && p.currentSquare === result.to
+        )?.name || PIECE_NAME_FULL[result.captured];
+        const moraleLines = {
+          q: `${capturedName} the queen is gone. A hush falls over the white ranks.`,
+          r: `${capturedName} the rook has fallen. The flanks feel exposed.`,
+          b: `${capturedName} the bishop is lost. The diagonals weep.`,
+          n: `${capturedName} the knight is down. Morale wavers.`,
+          k: `The king has fallen. All is lost.`,
+        };
+        const moraleDetail = moraleLines[result.captured] || `A piece has fallen. Morale is shaken.`;
+        setEventLog(prev => [...prev, { kind: 'morale', detail: moraleDetail, ts: Date.now() }]);
+      }
     }
 
     if (checkGameOver(chess)) return;

@@ -420,6 +420,7 @@ body {
 .event-entry.promotion      { color: #88ccff; }
 .event-entry.turn_expired   { color: #555; font-style: italic; }
 .event-entry.game_over      { color: #ff6666; font-weight: bold; }
+.event-entry.morale         { color: #9966cc; font-style: italic; }
 
 /* ── Game over overlay ── */
 .overlay {
