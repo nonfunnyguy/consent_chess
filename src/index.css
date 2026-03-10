@@ -81,6 +81,36 @@ body {
   transition: border-color 0.2s, color 0.2s;
 }
 .btn-load-file:hover { border-color: #4a6fa5; color: #ccc; }
+.timer-input {
+  width: 100%;
+  background: #0f1b35;
+  border: 1px solid #334;
+  border-radius: 8px;
+  color: #e0e0e0;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  font-family: Georgia, serif;
+  margin-top: 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.timer-input:focus { border-color: #4a6fa5; }
+.difficulty-section { margin-bottom: 16px; text-align: left; }
+.difficulty-row { display: flex; gap: 8px; margin-top: 8px; }
+.difficulty-btn {
+  flex: 1;
+  background: #0f1b35;
+  border: 1px solid #334;
+  border-radius: 8px;
+  color: #888;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  font-size: 0.82rem;
+  padding: 8px 0;
+  transition: border-color 0.2s, color 0.2s;
+}
+.difficulty-btn:hover { border-color: #4a6fa5; color: #ccc; }
+.difficulty-btn.active { border-color: #4a6fa5; color: #f0d9b5; background: #1a2a4a; }
 
 /* ── Game layout ── */
 .game-view {

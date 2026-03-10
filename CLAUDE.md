@@ -65,5 +65,3 @@ Piece responses include a JSON block at the end that the frontend parses to extr
 - [x] Trust mechanics — pieces track broken promises explicitly
 - [x] Check pressure — king becomes increasingly panicked approaching checkmate
 - [x] Morale events — major captures trigger a morale note before the next turn
-- [ ] Two-player mode — both sides negotiate with their own pieces
-- [ ] Mobile layout — current layout assumes wide screen

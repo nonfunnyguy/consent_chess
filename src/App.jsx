@@ -74,8 +74,6 @@ const FILE_LABELS = ['a','b','c','d','e','f','g','h'];
 // CHESS ENGINE  (minimax + alpha-beta, depth 2)
 // ─────────────────────────────────────────────
 
-const ENGINE_DEPTH = 2; // raise to 3 for harder play (still < 200 ms; 4+ needs a Worker)
-
 const ENGINE_PIECE_VALUES = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
 
 // Piece-square tables — each flat array has 64 entries.
@@ -198,7 +196,7 @@ function engineMinimax(chess, depth, alpha, beta, isMaximizing) {
 }
 
 // Returns the best move string for the current player (black) or null if none.
-function getBestBlackMove(chess) {
+function getBestBlackMove(chess, depth) {
   // Shuffle first so ties between equal-scored moves are broken randomly
   const moves = [...chess.moves()].sort(() => Math.random() - 0.5);
   if (!moves.length) return null;
@@ -206,7 +204,7 @@ function getBestBlackMove(chess) {
   let bestScore = -Infinity;
   for (const m of moves) {
     chess.move(m);
-    const score = engineMinimax(chess, ENGINE_DEPTH - 1, -Infinity, Infinity, false);
+    const score = engineMinimax(chess, depth - 1, -Infinity, Infinity, false);
     chess.undo();
     if (score > bestScore) { bestScore = score; bestMove = m; }
   }
@@ -700,13 +698,15 @@ function stripJsonBlock(text) {
 function ApiKeySetup({ onStart, savedState, onContinue }) {
   const [key, setKey] = useState('');
   const [err, setErr] = useState('');
+  const [difficulty, setDifficulty] = useState(2);
+  const [timerSecs, setTimerSecs] = useState(TIMER_DURATION);
 
   function handleSubmit(e) {
     e.preventDefault();
     const trimmed = key.trim();
     if (!trimmed) { setErr('Please enter your Anthropic API key.'); return; }
     if (!trimmed.startsWith('sk-')) { setErr('Key should start with "sk-". Double-check and try again.'); return; }
-    onStart(trimmed);
+    onStart(trimmed, difficulty, Math.max(10, timerSecs));
   }
 
   return (
@@ -748,6 +748,30 @@ function ApiKeySetup({ onStart, savedState, onContinue }) {
           <button type="button" className="btn-load-file" onClick={() => document.getElementById('key-file-input').click()}>
             Load from file…
           </button>
+          <div className="difficulty-section">
+            <label>Turn timer (seconds)</label>
+            <input
+              type="number"
+              className="timer-input"
+              min="10"
+              max="600"
+              value={timerSecs}
+              onChange={e => setTimerSecs(Math.max(10, parseInt(e.target.value) || 10))}
+            />
+          </div>
+          <div className="difficulty-section">
+            <label>Difficulty</label>
+            <div className="difficulty-row">
+              {[{d:1,label:'Easy'},{d:2,label:'Medium'},{d:3,label:'Hard'}].map(({d,label}) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`difficulty-btn${difficulty === d ? ' active' : ''}`}
+                  onClick={() => setDifficulty(d)}
+                >{label}</button>
+              ))}
+            </div>
+          </div>
           <button type="submit" className="btn-primary">Start New Game</button>
         </form>
       </div>
@@ -861,7 +885,7 @@ function ChatPanel({ selectedPiece, isThinking, turnPhase, onSendMessage }) {
 
   const { name, type, personality, conversation, consentedMoves } = selectedPiece;
   const typeFull = PIECE_NAME_FULL[type];
-  const personalityStr = `${personality.courage}, ${personality.trust}, ${personality.loyalty}, ${personality.temperament}`;
+  const personalityStr = `${personality.courage}, ${personality.trust}, ${personality.loyalty}, ${personality.temperament}, ${personality.verbosity}`;
 
   const canSend = turnPhase === 'white' && !isThinking && input.trim().length > 0;
 
@@ -1117,29 +1141,39 @@ function App() {
   });
 
   const chessRef = useRef(null);
+  const [difficulty, setDifficulty] = useState(2);
+  const difficultyRef = useRef(2);
+  useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
+  const [timerDuration, setTimerDuration] = useState(TIMER_DURATION);
+  const timerDurationRef = useRef(TIMER_DURATION);
+  useEffect(() => { timerDurationRef.current = timerDuration; }, [timerDuration]);
 
   // ── Persist state to localStorage ──
   useEffect(() => {
     if (!gameStarted || turnPhase === 'gameover' || turnPhase === 'black') return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ fen, pieceIds, eventLog, turnPhase, timeLeft, apiKey }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ fen, pieceIds, eventLog, turnPhase, timeLeft, apiKey, difficulty, timerDuration }));
     } catch(e) {}
-  }, [fen, pieceIds, eventLog, turnPhase, timeLeft, gameStarted, apiKey]);
+  }, [fen, pieceIds, eventLog, turnPhase, timeLeft, gameStarted, apiKey, difficulty, timerDuration]);
 
   // ── Start / restart game ──
-  function startGame(key) {
+  function startGame(key, diff = 2, timerDur = TIMER_DURATION) {
     localStorage.removeItem(STORAGE_KEY);
     setSavedState(null);
     const chess = new Chess();
     chessRef.current = chess;
     const pieces = initializePieces(chess);
+    setDifficulty(diff);
+    difficultyRef.current = diff;
+    setTimerDuration(timerDur);
+    timerDurationRef.current = timerDur;
     setApiKey(key);
     setPieceIds(pieces);
     setFen(chess.fen());
     setEventLog([]);
     setSelectedSquare(null);
     setTurnPhase('white');
-    setTimeLeft(TIMER_DURATION);
+    setTimeLeft(timerDur);
     setIsThinking(false);
     setGameResult(null);
     setPendingPromotion(null);
@@ -1153,6 +1187,12 @@ function App() {
     const chess = new Chess();
     chess.load(save.fen);
     chessRef.current = chess;
+    const diff = save.difficulty ?? 2;
+    setDifficulty(diff);
+    difficultyRef.current = diff;
+    const timerDur = save.timerDuration ?? TIMER_DURATION;
+    setTimerDuration(timerDur);
+    timerDurationRef.current = timerDur;
     setApiKey(save.apiKey);
     setPieceIds(save.pieceIds);
     setFen(save.fen);
@@ -1246,7 +1286,7 @@ function App() {
       }
     }
 
-    const chosen = getBestBlackMove(chess);
+    const chosen = getBestBlackMove(chess, difficultyRef.current);
     if (!chosen) { checkGameOver(chess); return; }
     const result = chess.move(chosen);
     setFen(chess.fen());
@@ -1309,7 +1349,7 @@ function App() {
 
     setSelectedSquare(null);
     setTurnPhase('white');
-    setTimeLeft(TIMER_DURATION);
+    setTimeLeft(timerDurationRef.current);
   }
 
   // ── Execute a white move ──
