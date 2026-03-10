@@ -3,3 +3,7 @@ API Key.txt
 *.key
 .env
 .env.*
+
+# Build
+node_modules/
+dist/
