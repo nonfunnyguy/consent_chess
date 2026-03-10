@@ -43,9 +43,16 @@ This prevents the game collapsing into a single optimal script. A nihilistic paw
 
 Piece value maps to rhetorical difficulty. Sacrificing a pawn is a straightforward sales pitch. Sacrificing your queen requires actual persuasion.
 
-## Setup
+## Play it
 
-Requires Node.js and an [Anthropic API key](https://console.anthropic.com/).
+**Hosted:** [nonfunnyguy.github.io/consent_chess](https://nonfunnyguy.github.io/consent_chess/) — no install required, just bring your Anthropic API key.
+
+**Download and run locally:**
+1. Download the latest [release zip](https://github.com/nonfunnyguy/consent_chess/releases) and unzip it
+2. Run `start.bat` (Windows) or `start.sh` (Mac/Linux) — requires Node.js for `npx serve`
+3. Open the URL shown in the terminal
+
+**Run from source:**
 
 ```bash
 npm install

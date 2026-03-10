@@ -1,0 +1,3 @@
+@echo off
+echo Starting consent-chess...
+npx serve dist
