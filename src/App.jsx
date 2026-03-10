@@ -417,10 +417,25 @@ function parseConsents(responseText, chess, currentSquare) {
   return validated;
 }
 
+const MAX_CONV_MESSAGES = 20; // max history entries sent to API (not counting new message)
+
 async function callPieceAgent(apiKey, pieceData, userMessage, chess, eventLog, onChunk) {
   const systemPrompt = buildSystemPrompt(pieceData, chess, eventLog);
+
+  // Prune old conversation history to keep API calls from growing without bound.
+  // Always keep an even number so role alternation stays valid.
+  const rawConv = pieceData.conversation;
+  let trimmedConv = rawConv;
+  let pruneNote = '';
+  if (rawConv.length > MAX_CONV_MESSAGES) {
+    const keep = MAX_CONV_MESSAGES % 2 === 0 ? MAX_CONV_MESSAGES : MAX_CONV_MESSAGES - 1;
+    trimmedConv = rawConv.slice(-keep);
+    pruneNote = `[Earlier conversation omitted for brevity — ${rawConv.length - keep} messages not shown.]\n\n`;
+  }
+
   const messages = [
-    ...pieceData.conversation.map(({ role, content }) => ({ role, content })),
+    ...(pruneNote ? [{ role: 'user', content: pruneNote }, { role: 'assistant', content: 'Understood.' }] : []),
+    ...trimmedConv.map(({ role, content }) => ({ role, content })),
     { role: 'user', content: userMessage },
   ];
 
